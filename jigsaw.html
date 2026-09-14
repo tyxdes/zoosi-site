@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Animal Jigsaw Puzzle &mdash; Drag &amp; Solve | Zoosi</title>
+<meta name="description" content="Drag nine puzzle pieces together to reveal an animal, then hear its name in English, Hmong White, Hmong Green, and Spanish. A free jigsaw puzzle for kids.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@600;700;800&display=swap');
+  :root{
+    --green-screen:#108442; --green-deep:#0D7536; --green-btn:#5CBB72; --green-btn-d:#3F9C56;
+    --yellow:#F7F750; --yellow-d:#D2D244; --ink:#0D7536; --purple:#7a4fd0;
+    --font:'Baloo 2','Nunito','Segoe UI',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;margin:0;}
+  body{font-family:var(--font);background:var(--green-screen);margin:0;overflow:hidden;}
+  .screen{position:relative;width:100vw;height:100dvh;background:var(--green-screen);overflow:hidden;display:flex;flex-direction:column;}
+  .header{position:relative;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;justify-content:space-between;color:#fff;flex:none;}
+  .header .ttl{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:clamp(17px,2.4vw,22px);letter-spacing:.2px;pointer-events:none;}
+  .icon-btn{width:38px;height:38px;border:none;background:transparent;color:#eafff0;display:grid;place-items:center;cursor:pointer;border-radius:50%;}
+  .icon-btn:hover{background:rgba(255,255,255,.12);}
+  .icon-btn svg{width:22px;height:22px;}
+  .prog-row{flex:none;padding:2px 18px 6px;}
+  .track{height:9px;border-radius:9px;background:var(--green-deep);overflow:hidden;}
+  .fill{height:100%;width:0%;border-radius:9px;background:linear-gradient(90deg,#bfe05a,#f4e352);transition:width .45s cubic-bezier(.5,1.4,.4,1);}
+
+  .pz-name{flex:none;text-align:center;color:#fff;font-weight:800;text-transform:lowercase;
+    font-size:clamp(22px,5vw,34px);line-height:1.1;padding:4px 16px 2px;min-height:1.15em;
+    text-shadow:0 2px 0 rgba(0,0,0,.12);}
+
+  /* play area holds the dashed board guide and every piece */
+  .play{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;}
+  .guide{position:absolute;border:3px dashed rgba(255,255,255,.55);border-radius:14px;
+    background:rgba(255,255,255,.07);pointer-events:none;transition:opacity .4s;}
+  .guide.done{opacity:0;}
+
+  .piece{position:absolute;overflow:visible;cursor:grab;touch-action:none;user-select:none;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.30));will-change:transform;}
+  .piece.dragging{cursor:grabbing;filter:drop-shadow(0 12px 16px rgba(0,0,0,.38));}
+  .piece.locked{cursor:default;filter:drop-shadow(0 1px 2px rgba(0,0,0,.18));}
+  .piece.snapping{transition:left .18s cubic-bezier(.3,1.4,.5,1),top .18s cubic-bezier(.3,1.4,.5,1);}
+  .piece.pop{animation:pop .3s ease;}
+  @keyframes pop{40%{transform:scale(1.07)}}
+
+  .controls{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;width:100%;max-width:560px;margin:0 auto;padding:8px 16px calc(14px + env(safe-area-inset-bottom));}
+  .rnd{flex:0 0 auto;width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;background:var(--green-btn);color:var(--ink);display:grid;place-items:center;box-shadow:0 4px 0 var(--green-btn-d);transition:transform .08s;padding:0;}
+  .rnd:active{transform:translateY(3px);box-shadow:0 1px 0 var(--green-btn-d);}
+  .rnd svg{width:23px;height:23px;}
+  .hear{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:var(--font);font-weight:700;font-size:16px;color:var(--ink);background:var(--yellow);padding:13px 22px;border-radius:28px;box-shadow:0 5px 0 var(--yellow-d);transition:transform .08s;white-space:nowrap;}
+  .hear:active{transform:translateY(3px);box-shadow:0 2px 0 var(--yellow-d);}
+  .hear svg{width:21px;height:21px;flex:none;}
+
+  .menu{position:absolute;z-index:70;background:#fff;border-radius:22px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.30);min-width:200px;display:none;}
+  .menu.open{display:block;animation:menuin .16s ease;}
+  @keyframes menuin{from{opacity:0;transform:translateY(8px) scale(.97);}}
+  #menu-lang{top:56px;right:12px;}
+  .menu-title{font-weight:800;font-size:14px;color:#8ea79a;padding:8px 14px;letter-spacing:.3px;}
+  .menu-item{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:none;background:transparent;font-family:var(--font);font-weight:800;font-size:16px;color:#16276b;text-align:left;padding:13px 14px;border-radius:14px;cursor:pointer;}
+  .menu-item:hover{background:#f2f5f2;}
+  .menu-item.cur{background:#e4f3e9;color:#108442;}
+  .menu-item .tick{width:18px;height:18px;color:#108442;opacity:0;flex:none;}
+  .menu-item.cur .tick{opacity:1;}
+
+  .win{position:absolute;inset:0;z-index:85;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(13,117,54,.96);color:#fff;text-align:center;padding:30px;}
+  .win.open{display:flex;animation:fade .3s;}
+  @keyframes fade{from{opacity:0}}
+  .win .emoji{font-size:60px;animation:bob 1.4s ease-in-out infinite;}
+  @keyframes bob{50%{transform:translateY(-10px) rotate(-6deg)}}
+  .win h2{font-size:30px;margin:6px 0 0;font-weight:800;}
+  .win p{margin:2px 0 14px;font-weight:600;opacity:.9;}
+  .win-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+  .wbtn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-family:var(--font);font-weight:800;font-size:17px;padding:14px 28px;border-radius:30px;}
+  .wicon{width:20px;height:20px;flex:none;}
+  .wbtn.again{color:var(--ink);background:var(--yellow);box-shadow:0 5px 0 var(--yellow-d);}
+  .wbtn.home{color:#fff;background:var(--green-btn);box-shadow:0 5px 0 var(--green-btn-d);}
+  .wbtn:active{transform:translateY(3px);}
+  .wbtn.again:active{box-shadow:0 2px 0 var(--yellow-d);}
+  .wbtn.home:active{box-shadow:0 2px 0 var(--green-btn-d);}
+
+  .confetti{position:absolute;top:-10px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards;z-index:90;}
+  @keyframes fall{to{transform:translateY(120vh) rotate(540deg);opacity:.9;}}
+  .toast{position:absolute;bottom:92px;left:50%;transform:translateX(-50%) translateY(10px);background:#fff;color:var(--green-deep);font-weight:700;font-size:14px;padding:9px 18px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:75;max-width:80%;text-align:center;}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<div class="screen">
+  <div class="header">
+    <button class="icon-btn" id="btn-home" title="Home" aria-label="Home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
+    </button>
+    <div class="ttl">Jigsaw</div>
+    <button class="icon-btn" id="btn-newgame" title="Language" aria-label="Language menu">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>
+    </button>
+  </div>
+
+  <div class="prog-row"><div class="track"><div class="fill" id="fill"></div></div></div>
+
+  <div class="pz-name" id="pz-name"></div>
+
+  <div class="play" id="play">
+    <div class="guide" id="guide"></div>
+  </div>
+
+  <div class="controls">
+    <button class="rnd" id="btn-shuffle" title="Shuffle pieces" aria-label="Shuffle pieces">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    </button>
+    <button class="hear" id="btn-hear">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a4 4 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Hear it</span>
+    </button>
+    <button class="rnd" id="btn-next" title="New animal" aria-label="New animal">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
+    </button>
+  </div>
+
+  <div class="menu" id="menu-lang">
+    <div class="menu-title">Language</div>
+    <button class="menu-item" data-lang="en"><span>English</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></svg></button>
+    <button class="menu-item" data-lang="hmnw"><span>Hmong White</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></svg></button>
+    <button class="menu-item" data-lang="hmng"><span>Hmong Green</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></svg></button>
+    <button class="menu-item" data-lang="es"><span>Spanish</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></svg></button>
+  </div>
+
+  <div class="win" id="win">
+    <div class="emoji">&#127881;</div>
+    <h2>You did it!</h2>
+    <p id="win-sub"></p>
+    <div class="win-btns">
+      <button class="wbtn home" id="win-home"><svg class="wicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Home</button>
+      <button class="wbtn again" id="win-again"><svg class="wicon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M9.6 7.2v9.6l8.2-4.8z"/></svg>Play again</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const GAME={"animals": [{"key": "ant", "names": {"en": "ant", "es": "hormiga", "hmnw": "ntsaum", "hmng": "ntsaum"}}, {"key": "bear", "names": {"en": "bear", "es": "oso", "hmnw": "dais", "hmng": "dlais"}}, {"key": "bird", "names": {"en": "bird", "es": "p\u00e1jaro", "hmnw": "noog", "hmng": "noog"}}, {"key": "butterfly", "names": {"en": "butterfly", "es": "mariposa", "hmnw": "npauj npaim", "hmng": "npauj npaim"}}, {"key": "cat", "names": {"en": "cat", "es": "gato", "hmnw": "miv", "hmng": "miv"}}, {"key": "chicken", "names": {"en": "chicken", "es": "gallina", "hmnw": "qaib", "hmng": "qab"}}, {"key": "cow", "names": {"en": "cow", "es": "vaca", "hmnw": "nyuj", "hmng": "nyuj"}}, {"key": "crab", "names": {"en": "crab", "es": "cangrejo", "hmnw": "roob ris", "hmng": "roob rig"}}, {"key": "crocodile", "names": {"en": "crocodile", "es": "cocodrilo", "hmnw": "kheb", "hmng": "kheb"}}, {"key": "deer", "names": {"en": "deer", "es": "venado", "hmnw": "mos lwj", "hmng": "mos lwj"}}, {"key": "dog", "names": {"en": "dog", "es": "perro", "hmnw": "dev", "hmng": "dlev"}}, {"key": "elephant", "names": {"en": "elephant", "es": "elefante", "hmnw": "ntxhw", "hmng": "ntxhw"}}, {"key": "fish", "names": {"en": "fish", "es": "pez", "hmnw": "ntses", "hmng": "ntseg"}}, {"key": "fly", "names": {"en": "fly", "es": "mosca", "hmnw": "yoov", "hmng": "yoov"}}, {"key": "fox", "names": {"en": "fox", "es": "zorro", "hmnw": "hma", "hmng": "hmaa"}}, {"key": "frog", "names": {"en": "frog", "es": "rana", "hmnw": "qav", "hmng": "qaav"}}, {"key": "goat", "names": {"en": "goat", "es": "cabra", "hmnw": "tshis", "hmng": "tshis"}}, {"key": "grasshopper", "names": {"en": "grasshopper", "es": "saltamontes", "hmnw": "kooj", "hmng": "kooj"}}, {"key": "horse", "names": {"en": "horse", "es": "caballo", "hmnw": "nees", "hmng": "neeg"}}, {"key": "mouse", "names": {"en": "mouse", "es": "rat\u00f3n", "hmnw": "nas", "hmng": "naas"}}, {"key": "peacock", "names": {"en": "peacock", "es": "pavo real", "hmnw": "yaj yuam", "hmng": "yaaj yuam"}}, {"key": "pig", "names": {"en": "pig", "es": "cerdo", "hmnw": "npua", "hmng": "npua"}}, {"key": "rabbit", "names": {"en": "rabbit", "es": "conejo", "hmnw": "luav", "hmng": "luav"}}, {"key": "snail", "names": {"en": "snail", "es": "caracol", "hmnw": "qwj", "hmng": "qwj"}}, {"key": "tiger", "names": {"en": "tiger", "es": "tigre", "hmnw": "tsov txaij", "hmng": "tsuv txaij"}}, {"key": "turtle", "names": {"en": "turtle", "es": "tortuga", "hmnw": "vaub kib", "hmng": "vaub kib"}}]};
+const ANIMALS=GAME.animals;
+const N=3;                    /* 3 x 3 = 9 pieces */
+
+let lang='en', animal=null, pieces=[], placed=0, solved=false;
+let board={x:0,y:0,w:0,h:0}, cw=0, ch=0, tabU=0, pad=0;
+let vt=[], ht=[];             /* shared tab directions */
+
+const playEl=document.getElementById('play');
+const guideEl=document.getElementById('guide');
+const nameEl=document.getElementById('pz-name');
+const fillEl=document.getElementById('fill');
+const winEl=document.getElementById('win');
+const toastEl=document.getElementById('toast');
+
+function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toastEl.classList.remove('show'),1600);}
+function word(){ return animal ? (animal.names[lang]||animal.key) : ''; }
+
+/* ---------- audio ---------- */
+let au=null, audioWarned=false;
+function playClip(url){ try{ if(!au){au=new Audio();au.preload='auto';} au.pause(); au.src=url; const p=au.play(); if(p&&p.catch)p.catch(err=>{ if(!audioWarned){audioWarned=true;toast('audio blocked ('+(err&&err.name||'?')+')');} }); }catch(e){} }
+function playName(){ if(animal) playClip('assets/audio/'+lang+'/'+animal.key+'.mp3'); }
+
+/* ---------- jigsaw edge geometry ----------
+   One edge runs from (0,0) to (1,0) in normalized space. x is distance along
+   the edge, y is perpendicular offset. s = +1 / -1 picks the side the tab
+   bulges toward; s = 0 is a flat outer border. The curve is symmetric about
+   x = 0.5, so two neighbours tracing it from opposite ends get the same shape. */
+const TAB_MAX=0.30;           /* furthest a control point strays from the edge */
+function edgeSegs(s){
+  if(s===0) return [['L',[[1,0]]]];
+  const y=v=>v*s;
+  return [
+    ['L',[[0.38,0]]],
+    ['C',[[0.45,y(0.03)],[0.30,y(0.06)],[0.30,y(0.15)]]],
+    ['C',[[0.30,y(0.30)],[0.70,y(0.30)],[0.70,y(0.15)]]],
+    ['C',[[0.70,y(0.06)],[0.55,y(0.03)],[0.62,0]]],
+    ['L',[[1,0]]]
+  ];
+}
+/* rot = direction of travel: 0 right, 1 down, 2 left, 3 up.
+   L is the edge length, T the tab unit. The tab is squeezed toward the middle
+   of longer edges so every tab comes out the same physical size, rather than
+   stretching with the edge it sits on. */
+function mapSegs(segs,ox,oy,L,T,rot){
+  const k=Math.min(1,T/L);
+  const sq=x=>(x>=0.999?1:(x<=0.001?0:0.5+(x-0.5)*k));
+  const pt=(x0,y)=>{
+    const x=sq(x0); let px,py;
+    if(rot===0){px= x*L; py= y*T;}
+    else if(rot===1){px=-y*T; py= x*L;}
+    else if(rot===2){px=-x*L; py=-y*T;}
+    else {px= y*T; py=-x*L;}
+    return (ox+px).toFixed(2)+','+(oy+py).toFixed(2);
+  };
+  return segs.map(([cmd,pts])=>cmd+' '+pts.map(p=>pt(p[0],p[1])).join(' ')).join(' ');
+}
+function piecePath(r,c){
+  const ox=c*cw, oy=r*ch;
+  const top    = (r===0)   ?  0 :  ht[r][c];
+  const right  = (c===N-1) ?  0 :  vt[r][c+1];
+  const bottom = (r===N-1) ?  0 : -ht[r+1][c];
+  const left   = (c===0)   ?  0 : -vt[r][c];
+  return 'M '+ox.toFixed(2)+','+oy.toFixed(2)+' '
+    + mapSegs(edgeSegs(top),    ox,    oy,    cw, tabU, 0)+' '
+    + mapSegs(edgeSegs(right),  ox+cw, oy,    ch, tabU, 1)+' '
+    + mapSegs(edgeSegs(bottom), ox+cw, oy+ch, cw, tabU, 2)+' '
+    + mapSegs(edgeSegs(left),   ox,    oy+ch, ch, tabU, 3)+' Z';
+}
+
+/* ---------- layout ---------- */
+function measure(natW,natH){
+  const pw=playEl.clientWidth, phh=playEl.clientHeight;
+  if(pw<40||phh<40) return false;
+  /* Follow the artwork's aspect so every piece carries some of the animal, but
+     clamp it so cells never get very long and thin. Anything outside the clamp
+     is letterboxed against the piece's white backing, never stretched. */
+  let ar=natW/natH;
+  if(!isFinite(ar)||ar<=0) ar=1;
+  ar=Math.max(0.78,Math.min(1.28,ar));
+  const room=Math.min(pw,phh);
+  const target=room*(room<340?0.60:0.62);
+  let bw,bh;
+  if(ar>=1){ bw=target*ar; bh=bw/ar; } else { bh=target/ar; bw=bh*ar; }
+  if(bw>pw*0.66){ bw=pw*0.66; bh=bw/ar; }
+  if(bh>phh*0.66){ bh=phh*0.66; bw=bh*ar; }
+  board={x:(pw-bw)/2, y:(phh-bh)/2, w:bw, h:bh};
+  cw=bw/N; ch=bh/N; tabU=Math.min(cw,ch); pad=TAB_MAX*tabU;
+  guideEl.style.left=board.x+'px'; guideEl.style.top=board.y+'px';
+  guideEl.style.width=bw+'px'; guideEl.style.height=bh+'px';
+  return true;
+}
+
+/* scatter an unsolved piece somewhere in the margin around the board */
+function scatterSpot(pw,ph,w,h){
+  const bands=[];
+  if(board.y>h*0.55)                bands.push([0,0,pw,board.y]);                       /* above */
+  if(ph-(board.y+board.h)>h*0.55)   bands.push([0,board.y+board.h,pw,ph-(board.y+board.h)]); /* below */
+  if(board.x>w*0.55)                bands.push([0,0,board.x,ph]);                       /* left  */
+  if(pw-(board.x+board.w)>w*0.55)   bands.push([board.x+board.w,0,pw-(board.x+board.w),ph]); /* right */
+  if(!bands.length) bands.push([0,0,pw,ph]);
+  const b=bands[Math.floor(Math.random()*bands.length)];
+  const x=b[0]+Math.random()*Math.max(1,b[2]-w);
+  const y=b[1]+Math.random()*Math.max(1,b[3]-h);
+  return {x:Math.max(0,Math.min(pw-w,x)), y:Math.max(0,Math.min(ph-h,y))};
+}
+function scatter(p){
+  const pw=playEl.clientWidth, ph=playEl.clientHeight;
+  let best=null,bestScore=-1;
+  for(let t=0;t<40;t++){
+    const s=scatterSpot(pw,ph,p.w,p.h);
+    /* prefer spots away from other loose pieces and away from its own home */
+    let score=Math.hypot(s.x-p.homeX,s.y-p.homeY);
+    if(score<p.w*0.8) continue;
+    pieces.forEach(q=>{ if(q!==p&&!q.locked&&q.el) score=Math.min(score,Math.hypot(s.x-q.x,s.y-q.y)*1.4); });
+    if(score>bestScore){bestScore=score;best=s;}
+    if(bestScore>p.w*0.9) break;
+  }
+  if(!best) best=scatterSpot(pw,ph,p.w,p.h);
+  setPos(p,best.x,best.y);
+}
+function setPos(p,x,y){ p.x=x; p.y=y; p.el.style.left=x+'px'; p.el.style.top=y+'px'; }
+
+/* ---------- build ---------- */
+let zTop=10;
+function build(keepLocked){
+  const img=new Image();
+  img.onload=()=>{ if(measure(img.naturalWidth,img.naturalHeight)) paint(img, keepLocked); };
+  img.onerror=()=>{ if(measure(1,1)) paint(img, keepLocked); };
+  img.src='assets/img/'+animal.key+'.png';
+}
+function paint(img, keepLocked){
+  const lockedKeys = keepLocked ? pieces.filter(p=>p.locked).map(p=>p.i) : [];
+  playEl.querySelectorAll('.piece').forEach(e=>e.remove());
+  pieces=[]; placed=0;
+  const src='assets/img/'+animal.key+'.png';
+  for(let r=0;r<N;r++) for(let c=0;c<N;c++){
+    const i=r*N+c;
+    const d=piecePath(r,c);
+    const vbX=c*cw-pad, vbY=r*ch-pad, vbW=cw+2*pad, vbH=ch+2*pad;
+    const el=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    el.setAttribute('class','piece');
+    el.setAttribute('viewBox',vbX+' '+vbY+' '+vbW+' '+vbH);
+    el.style.width=vbW+'px'; el.style.height=vbH+'px';
+    el.innerHTML=
+      '<defs><clipPath id="cp'+i+'"><path d="'+d+'"/></clipPath></defs>'+
+      '<path d="'+d+'" fill="#ffffff"/>'+
+      '<image href="'+src+'" x="0" y="0" width="'+board.w+'" height="'+board.h+'" '+
+        'preserveAspectRatio="xMidYMid meet" clip-path="url(#cp'+i+')"/>'+
+      '<path d="'+d+'" fill="none" stroke="rgba(13,117,54,.28)" stroke-width="1.4" stroke-linejoin="round"/>';
+    playEl.appendChild(el);
+    const p={i:i,el:el,w:vbW,h:vbH,homeX:board.x+vbX,homeY:board.y+vbY,x:0,y:0,locked:false};
+    pieces.push(p);
+    if(lockedKeys.indexOf(i)>=0){ lock(p,true); } else { scatter(p); }
+    attachDrag(p);
+  }
+  updateProgress();
+}
+
+function lock(p,silent){
+  p.locked=true; p.el.classList.add('locked');
+  p.el.style.zIndex=1;
+  setPos(p,p.homeX,p.homeY);
+  placed++;
+  if(!silent){ p.el.classList.add('pop'); setTimeout(()=>p.el.classList.remove('pop'),320); }
+  updateProgress();
+}
+function updateProgress(){
+  fillEl.style.width=Math.round(placed/(N*N)*100)+'%';
+  guideEl.classList.toggle('done',placed===N*N);
+}
+
+/* ---------- dragging ---------- */
+function attachDrag(p){
+  p.el.addEventListener('pointerdown',ev=>{
+    if(p.locked||solved) return;
+    ev.preventDefault();
+    p.el.setPointerCapture(ev.pointerId);
+    p.el.classList.add('dragging'); p.el.classList.remove('snapping');
+    p.el.style.zIndex=++zTop;
+    const r=playEl.getBoundingClientRect();
+    p.dx=(ev.clientX-r.left)-p.x; p.dy=(ev.clientY-r.top)-p.y;
+    p.drag=true;
+  });
+  p.el.addEventListener('pointermove',ev=>{
+    if(!p.drag) return;
+    const r=playEl.getBoundingClientRect();
+    let nx=(ev.clientX-r.left)-p.dx, ny=(ev.clientY-r.top)-p.dy;
+    nx=Math.max(-p.w*0.3,Math.min(r.width-p.w*0.7,nx));
+    ny=Math.max(-p.h*0.3,Math.min(r.height-p.h*0.7,ny));
+    setPos(p,nx,ny);
+  });
+  const end=ev=>{
+    if(!p.drag) return;
+    p.drag=false; p.el.classList.remove('dragging');
+    try{p.el.releasePointerCapture(ev.pointerId);}catch(e){}
+    const dist=Math.hypot(p.x-p.homeX,p.y-p.homeY);
+    if(dist<Math.max(26,tabU*0.42)){
+      p.el.classList.add('snapping');
+      lock(p);
+      setTimeout(()=>p.el.classList.remove('snapping'),220);
+      if(placed===N*N) setTimeout(win,420);
+    }
+  };
+  p.el.addEventListener('pointerup',end);
+  p.el.addEventListener('pointercancel',end);
+}
+
+/* ---------- win ---------- */
+function win(){
+  solved=true;
+  document.getElementById('win-sub').textContent='You put together the '+word()+'.';
+  winEl.classList.add('open');
+  playName();
+  confetti();
+}
+function confetti(){
+  const cols=['#F7F750','#33b7a3','#e85f9c','#4aa0dd','#f0913f','#8a5bc9'];
+  for(let i=0;i<60;i++){ const c=document.createElement('div'); c.className='confetti';
+    c.style.left=Math.random()*100+'%'; c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(1.6+Math.random()*1.3)+'s'; c.style.animationDelay=(Math.random()*.3)+'s';
+    document.querySelector('.screen').appendChild(c); setTimeout(()=>c.remove(),3200); }
+}
+
+/* ---------- rounds ---------- */
+function randomTabs(){
+  vt=[]; ht=[];
+  for(let r=0;r<N;r++){ vt.push([]); for(let c=0;c<=N;c++) vt[r].push(Math.random()<0.5?-1:1); }
+  for(let r=0;r<=N;r++){ ht.push([]); for(let c=0;c<=N;c++) ht[r].push(Math.random()<0.5?-1:1); }
+}
+function newRound(keepAnimal){
+  solved=false; winEl.classList.remove('open');
+  winEl.querySelectorAll('.confetti').forEach(c=>c.remove());
+  if(!keepAnimal){
+    let next=animal;
+    while(ANIMALS.length>1 && next===animal) next=ANIMALS[Math.floor(Math.random()*ANIMALS.length)];
+    animal=next;
+  }
+  randomTabs();
+  nameEl.textContent=word();
+  build(false);
+}
+function shuffleOnly(){
+  solved=false;
+  pieces.forEach(p=>{ p.locked=false; p.el.classList.remove('locked'); p.el.style.zIndex=++zTop; });
+  placed=0; randomTabs(); build(false);
+}
+
+/* ---------- language ---------- */
+const menuLang=document.getElementById('menu-lang');
+function applyLangMark(){ document.querySelectorAll('#menu-lang .menu-item').forEach(it=>it.classList.toggle('cur',it.dataset.lang===lang)); }
+function setLang(code){ lang=code; applyLangMark(); nameEl.textContent=word();
+  if(solved) document.getElementById('win-sub').textContent='You put together the '+word()+'.'; playName(); }
+
+document.getElementById('btn-newgame').addEventListener('click',e=>{e.stopPropagation();menuLang.classList.toggle('open');});
+menuLang.addEventListener('click',e=>{const it=e.target.closest('.menu-item');if(!it)return;menuLang.classList.remove('open');setLang(it.dataset.lang);});
+document.addEventListener('click',()=>menuLang.classList.remove('open'));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') menuLang.classList.remove('open'); });
+
+document.getElementById('btn-home').addEventListener('click',()=>{location.href='index.html';});
+document.getElementById('btn-hear').addEventListener('click',playName);
+document.getElementById('btn-shuffle').addEventListener('click',shuffleOnly);
+document.getElementById('btn-next').addEventListener('click',()=>newRound(false));
+document.getElementById('win-home').addEventListener('click',()=>{location.href='index.html';});
+document.getElementById('win-again').addEventListener('click',()=>newRound(false));
+
+/* keep the board sensible through rotation / resize */
+let rt=null;
+addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(animal) build(true); },180); });
+
+applyLangMark();
+newRound(false);
+/* the play area's height can still be settling on first paint (dvh, safe areas) */
+requestAnimationFrame(()=>{ if(animal) build(true); });
+addEventListener('load',()=>setTimeout(()=>{ if(animal) build(true); },80));
+</script>
+</body>
+</html>
