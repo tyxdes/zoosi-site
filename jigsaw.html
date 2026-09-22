@@ -12,7 +12,7 @@
     --green-screen:#108442; --green-deep:#0D7536; --green-btn:#5CBB72; --green-btn-d:#3F9C56;
     --yellow:#F7F750; --yellow-d:#D2D244; --ink:#0D7536;
     --font:'Baloo 2','Nunito','Segoe UI',system-ui,sans-serif;
-    --b:clamp(46px,10vw,100px);              /* control button size, scales up to tablet */
+    --b:48px;                                /* control button size — fixed, same as the other games */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
@@ -28,7 +28,7 @@
 
   /* animal name — big, sits above the puzzle */
   .pz-name{flex:none;text-align:center;color:#fff;font-weight:800;text-transform:lowercase;
-    font-size:clamp(40px,9vw,84px);line-height:1.05;padding:clamp(4px,2.4vh,34px) 16px 0;
+    font-size:44px;line-height:1.05;padding:10px 16px 0;
     text-shadow:0 .05em 0 rgba(0,0,0,.16);overflow-wrap:anywhere;}
 
   .play{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;}
@@ -51,19 +51,25 @@
   @keyframes pop{40%{transform:scale(1.07)}}
 
   /* bottom bar: undo · redo · hear it · language · new game */
-  .controls{flex:none;display:flex;align-items:center;justify-content:space-between;gap:clamp(8px,2vw,24px);
-    width:100%;max-width:980px;margin:0 auto;padding:10px clamp(12px,4vw,56px) calc(16px + env(safe-area-inset-bottom));}
+  .controls{flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    width:100%;max-width:560px;margin:0 auto;padding:10px 16px calc(16px + env(safe-area-inset-bottom));}
   .rnd{flex:none;width:var(--b);height:var(--b);border-radius:50%;border:none;cursor:pointer;background:var(--green-btn);color:var(--ink);
-    display:grid;place-items:center;box-shadow:0 calc(var(--b)*.07) 0 var(--green-btn-d);transition:transform .08s,opacity .2s;padding:0;}
+    display:grid;place-items:center;box-shadow:0 4px 0 var(--green-btn-d);transition:transform .08s,opacity .2s;padding:0;}
   .rnd:active{transform:translateY(3px);box-shadow:0 1px 0 var(--green-btn-d);}
-  .rnd svg{width:44%;height:44%;}
+  .rnd svg{width:23px;height:23px;}
   .rnd.off{opacity:.4;pointer-events:none;}
-  .hear{flex:0 1 auto;height:var(--b);display:inline-flex;align-items:center;justify-content:center;gap:.45em;border:none;cursor:pointer;
-    font-family:var(--font);font-weight:800;font-size:clamp(16px,3.1vw,32px);color:var(--ink);background:var(--yellow);
-    padding:0 clamp(16px,3.6vw,50px);border-radius:var(--b);box-shadow:0 calc(var(--b)*.07) 0 var(--yellow-d);transition:transform .08s;white-space:nowrap;}
+  .hear{flex:0 1 auto;height:var(--b);display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;
+    font-family:var(--font);font-weight:700;font-size:16px;color:var(--ink);background:var(--yellow);
+    padding:0 22px;border-radius:28px;box-shadow:0 5px 0 var(--yellow-d);transition:transform .08s;white-space:nowrap;}
   .hear:active{transform:translateY(3px);box-shadow:0 2px 0 var(--yellow-d);}
-  .hear svg{width:1.3em;height:1.3em;flex:none;}
-  @media (max-width:350px){ .hear span{display:none;} .hear{width:var(--b);padding:0;} }
+  .hear svg{width:21px;height:21px;flex:none;}
+  /* narrow phones: tighten the gaps so all five buttons still fit, sizes unchanged */
+  @media (max-width:385px){
+    .controls{gap:6px;padding-left:10px;padding-right:10px;}
+    .hear{padding:0 14px;gap:6px;}
+  }
+  @media (max-width:340px){ .pz-name{font-size:36px;} }   /* keeps the longest name on one line */
+  @media (max-width:325px){ .hear span{display:none;} .hear{width:var(--b);padding:0;} }
 
   .menu{position:absolute;z-index:95;background:#fff;border-radius:22px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.30);min-width:200px;display:none;}
   .menu.open{display:block;animation:menuin .16s ease;}
@@ -82,17 +88,18 @@
   .win.open{display:flex;animation:fade .35s;}
   @keyframes fade{from{opacity:0}}
   .win .pz-name{position:relative;z-index:2;text-shadow:none;}
-  .w-slot{position:relative;z-index:2;flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2.4vh,30px) 0;}
-  .w-card{background:#fff;border-radius:2px;box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;animation:cardin .55s cubic-bezier(.3,1.3,.5,1);}
+  .w-slot{position:relative;z-index:2;flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;padding:16px 0;}
+  .w-card{background:#fff;border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;animation:cardin .55s cubic-bezier(.3,1.3,.5,1);}
   .w-card img{display:block;width:100%;height:100%;object-fit:contain;}
   @keyframes cardin{from{transform:scale(.94);opacity:.4}}
   .w-text{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;}
-  .win h2{position:relative;z-index:2;font-size:clamp(30px,5.6vw,54px);margin:0;font-weight:800;line-height:1.1;}
-  .win p{position:relative;z-index:2;margin:.3em 0 0;font-weight:700;font-size:clamp(17px,2.9vw,27px);}
-  .win-btns{position:relative;z-index:2;display:flex;gap:clamp(12px,2.4vw,28px);flex-wrap:wrap;justify-content:center;margin-top:clamp(16px,3.6vh,48px);}
-  .wbtn{display:inline-flex;align-items:center;justify-content:center;gap:.5em;border:none;cursor:pointer;font-family:var(--font);font-weight:800;
-    font-size:clamp(17px,3vw,32px);padding:clamp(13px,2.4vw,28px) clamp(26px,5.2vw,62px);border-radius:999px;}
-  .wicon{width:1.15em;height:1.15em;flex:none;}
+  .win h2{position:relative;z-index:2;font-size:30px;margin:0;font-weight:800;line-height:1.1;}
+  .win p{position:relative;z-index:2;margin:6px 0 0;font-weight:600;font-size:16px;opacity:.92;}
+  .win-btns{position:relative;z-index:2;display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:18px;}
+  /* same size as the bottom-bar buttons */
+  .wbtn{height:var(--b);display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;
+    font-family:var(--font);font-weight:700;font-size:16px;padding:0 22px;border-radius:28px;}
+  .wicon{width:21px;height:21px;flex:none;}
   .wbtn.again{color:var(--ink);background:var(--yellow);box-shadow:0 5px 0 var(--yellow-d);}
   .wbtn.home{color:#fff;background:var(--green-btn);box-shadow:0 5px 0 var(--green-btn-d);}
   .wbtn:active{transform:translateY(3px);}
@@ -103,16 +110,12 @@
   @keyframes fall{to{transform:translateY(120vh) rotate(540deg);opacity:.9;}}
   .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%) translateY(10px);background:#fff;color:var(--green-deep);font-weight:700;font-size:14px;padding:9px 18px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:96;max-width:80%;text-align:center;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-  /* short screens (phones on their side): tighten everything around the puzzle */
+  /* short screens (phones on their side): tighten the spacing only — sizes stay fixed */
   @media (max-height:520px){
-    :root{--b:clamp(38px,11vh,54px);}
     .header{padding-top:calc(4px + env(safe-area-inset-top));padding-bottom:2px;}
-    .pz-name{font-size:clamp(24px,7vh,40px);padding-top:0;}
+    .pz-name{font-size:34px;padding-top:2px;}
     .controls{padding-top:4px;padding-bottom:calc(8px + env(safe-area-inset-bottom));}
-    .hear{font-size:clamp(15px,4vh,20px);}
-    .win h2{font-size:clamp(22px,6.5vh,34px);} .win p{font-size:clamp(14px,3.8vh,18px);}
-    .win-btns{margin-top:14px;} .wbtn{font-size:16px;padding:10px 22px;}
-    .w-slot{padding:6px 0;}
+    .w-slot{padding:6px 0;} .win-btns{margin-top:12px;}
   }
   /* wide and short: art on the left, message and buttons on the right */
   @media (max-height:520px) and (orientation:landscape){
