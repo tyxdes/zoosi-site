@@ -5,56 +5,70 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Animal Jigsaw Puzzle &mdash; Drag &amp; Solve | Zoosi</title>
 <meta name="description" content="Drag nine puzzle pieces together to reveal an animal, then hear its name in English, Hmong White, Hmong Green, and Spanish. A free jigsaw puzzle for kids.">
+
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@600;700;800&display=swap');
   :root{
     --green-screen:#108442; --green-deep:#0D7536; --green-btn:#5CBB72; --green-btn-d:#3F9C56;
-    --yellow:#F7F750; --yellow-d:#D2D244; --ink:#0D7536; --purple:#7a4fd0;
+    --yellow:#F7F750; --yellow-d:#D2D244; --ink:#0D7536;
     --font:'Baloo 2','Nunito','Segoe UI',system-ui,sans-serif;
+    --b:clamp(46px,10vw,100px);              /* control button size, scales up to tablet */
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{height:100%;margin:0;}
   body{font-family:var(--font);background:var(--green-screen);margin:0;overflow:hidden;}
   .screen{position:relative;width:100vw;height:100dvh;background:var(--green-screen);overflow:hidden;display:flex;flex-direction:column;}
-  .header{position:relative;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;justify-content:space-between;color:#fff;flex:none;}
+
+  .header{position:relative;padding:calc(10px + env(safe-area-inset-top)) 14px 8px;display:flex;align-items:center;justify-content:space-between;color:#fff;flex:none;z-index:90;transition:opacity .3s;}
   .header .ttl{position:absolute;left:0;right:0;text-align:center;font-weight:700;font-size:clamp(17px,2.4vw,22px);letter-spacing:.2px;pointer-events:none;}
   .icon-btn{width:38px;height:38px;border:none;background:transparent;color:#eafff0;display:grid;place-items:center;cursor:pointer;border-radius:50%;}
   .icon-btn:hover{background:rgba(255,255,255,.12);}
   .icon-btn svg{width:22px;height:22px;}
-  .prog-row{flex:none;padding:2px 18px 6px;}
-  .track{height:9px;border-radius:9px;background:var(--green-deep);overflow:hidden;}
-  .fill{height:100%;width:0%;border-radius:9px;background:linear-gradient(90deg,#bfe05a,#f4e352);transition:width .45s cubic-bezier(.5,1.4,.4,1);}
+  .screen.won .header .ttl,.screen.won .header .icon-btn{opacity:.6;}
 
+  /* animal name — big, sits above the puzzle */
   .pz-name{flex:none;text-align:center;color:#fff;font-weight:800;text-transform:lowercase;
-    font-size:clamp(22px,5vw,34px);line-height:1.1;padding:4px 16px 2px;min-height:1.15em;
-    text-shadow:0 2px 0 rgba(0,0,0,.12);}
+    font-size:clamp(40px,9vw,84px);line-height:1.05;padding:clamp(4px,2.4vh,34px) 16px 0;
+    text-shadow:0 .05em 0 rgba(0,0,0,.16);overflow-wrap:anywhere;}
 
-  /* play area holds the dashed board guide and every piece */
   .play{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none;}
-  .guide{position:absolute;border:3px dashed rgba(255,255,255,.55);border-radius:14px;
-    background:rgba(255,255,255,.07);pointer-events:none;transition:opacity .4s;}
+  .guide{position:absolute;border:3px dashed rgba(255,255,255,.6);border-radius:2px;
+    background:rgba(255,255,255,.05);pointer-events:none;transition:opacity .4s;}
   .guide.done{opacity:0;}
 
-  .piece{position:absolute;overflow:visible;cursor:grab;touch-action:none;user-select:none;
-    filter:drop-shadow(0 4px 6px rgba(0,0,0,.30));will-change:transform;}
-  .piece.dragging{cursor:grabbing;filter:drop-shadow(0 12px 16px rgba(0,0,0,.38));}
-  .piece.locked{cursor:default;filter:drop-shadow(0 1px 2px rgba(0,0,0,.18));}
+  .piece{position:absolute;overflow:visible;touch-action:none;user-select:none;pointer-events:none;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.30));will-change:left,top;}
+  /* only the visible jigsaw shape is grabbable, never the empty space around its tabs */
+  .piece .hit{pointer-events:visiblePainted;cursor:grab;}
+  .piece image,.piece .edge{pointer-events:none;}
+  .piece.locked .hit{pointer-events:none;}
+  .piece.dragging .hit{cursor:grabbing;}
+  .piece.dragging{filter:drop-shadow(0 12px 16px rgba(0,0,0,.38));}
+  .piece.locked{filter:drop-shadow(0 1px 2px rgba(0,0,0,.18));}
   .piece.snapping{transition:left .18s cubic-bezier(.3,1.4,.5,1),top .18s cubic-bezier(.3,1.4,.5,1);}
+  .piece.moving{transition:left .3s ease,top .3s ease;}
   .piece.pop{animation:pop .3s ease;}
   @keyframes pop{40%{transform:scale(1.07)}}
 
-  .controls{flex:none;display:flex;align-items:center;justify-content:center;gap:14px;width:100%;max-width:560px;margin:0 auto;padding:8px 16px calc(14px + env(safe-area-inset-bottom));}
-  .rnd{flex:0 0 auto;width:48px;height:48px;border-radius:50%;border:none;cursor:pointer;background:var(--green-btn);color:var(--ink);display:grid;place-items:center;box-shadow:0 4px 0 var(--green-btn-d);transition:transform .08s;padding:0;}
+  /* bottom bar: undo · redo · hear it · language · new game */
+  .controls{flex:none;display:flex;align-items:center;justify-content:space-between;gap:clamp(8px,2vw,24px);
+    width:100%;max-width:980px;margin:0 auto;padding:10px clamp(12px,4vw,56px) calc(16px + env(safe-area-inset-bottom));}
+  .rnd{flex:none;width:var(--b);height:var(--b);border-radius:50%;border:none;cursor:pointer;background:var(--green-btn);color:var(--ink);
+    display:grid;place-items:center;box-shadow:0 calc(var(--b)*.07) 0 var(--green-btn-d);transition:transform .08s,opacity .2s;padding:0;}
   .rnd:active{transform:translateY(3px);box-shadow:0 1px 0 var(--green-btn-d);}
-  .rnd svg{width:23px;height:23px;}
-  .hear{flex:0 1 auto;display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;cursor:pointer;font-family:var(--font);font-weight:700;font-size:16px;color:var(--ink);background:var(--yellow);padding:13px 22px;border-radius:28px;box-shadow:0 5px 0 var(--yellow-d);transition:transform .08s;white-space:nowrap;}
+  .rnd svg{width:44%;height:44%;}
+  .rnd.off{opacity:.4;pointer-events:none;}
+  .hear{flex:0 1 auto;height:var(--b);display:inline-flex;align-items:center;justify-content:center;gap:.45em;border:none;cursor:pointer;
+    font-family:var(--font);font-weight:800;font-size:clamp(16px,3.1vw,32px);color:var(--ink);background:var(--yellow);
+    padding:0 clamp(16px,3.6vw,50px);border-radius:var(--b);box-shadow:0 calc(var(--b)*.07) 0 var(--yellow-d);transition:transform .08s;white-space:nowrap;}
   .hear:active{transform:translateY(3px);box-shadow:0 2px 0 var(--yellow-d);}
-  .hear svg{width:21px;height:21px;flex:none;}
+  .hear svg{width:1.3em;height:1.3em;flex:none;}
+  @media (max-width:350px){ .hear span{display:none;} .hear{width:var(--b);padding:0;} }
 
-  .menu{position:absolute;z-index:70;background:#fff;border-radius:22px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.30);min-width:200px;display:none;}
+  .menu{position:absolute;z-index:95;background:#fff;border-radius:22px;padding:10px;box-shadow:0 18px 44px rgba(0,0,0,.30);min-width:200px;display:none;}
   .menu.open{display:block;animation:menuin .16s ease;}
   @keyframes menuin{from{opacity:0;transform:translateY(8px) scale(.97);}}
-  #menu-lang{top:56px;right:12px;}
+  #menu-top{top:56px;right:12px;}
   .menu-title{font-weight:800;font-size:14px;color:#8ea79a;padding:8px 14px;letter-spacing:.3px;}
   .menu-item{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:none;background:transparent;font-family:var(--font);font-weight:800;font-size:16px;color:#16276b;text-align:left;padding:13px 14px;border-radius:14px;cursor:pointer;}
   .menu-item:hover{background:#f2f5f2;}
@@ -62,42 +76,65 @@
   .menu-item .tick{width:18px;height:18px;color:#108442;opacity:0;flex:none;}
   .menu-item.cur .tick{opacity:1;}
 
-  .win{position:absolute;inset:0;z-index:85;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;background:rgba(13,117,54,.96);color:#fff;text-align:center;padding:30px;}
-  .win.open{display:flex;animation:fade .3s;}
+  /* celebration — sits below the header and shows the finished art, uncovered */
+  .win{position:absolute;left:0;right:0;bottom:0;top:var(--hdr,58px);z-index:85;display:none;flex-direction:column;align-items:center;
+    background:var(--green-screen);color:#fff;text-align:center;overflow:hidden;padding:0 20px calc(18px + env(safe-area-inset-bottom));}
+  .win.open{display:flex;animation:fade .35s;}
   @keyframes fade{from{opacity:0}}
-  .win .emoji{font-size:60px;animation:bob 1.4s ease-in-out infinite;}
-  @keyframes bob{50%{transform:translateY(-10px) rotate(-6deg)}}
-  .win h2{font-size:30px;margin:6px 0 0;font-weight:800;}
-  .win p{margin:2px 0 14px;font-weight:600;opacity:.9;}
-  .win-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
-  .wbtn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;cursor:pointer;font-family:var(--font);font-weight:800;font-size:17px;padding:14px 28px;border-radius:30px;}
-  .wicon{width:20px;height:20px;flex:none;}
+  .win .pz-name{position:relative;z-index:2;text-shadow:none;}
+  .w-slot{position:relative;z-index:2;flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2.4vh,30px) 0;}
+  .w-card{background:#fff;border-radius:2px;box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;animation:cardin .55s cubic-bezier(.3,1.3,.5,1);}
+  .w-card img{display:block;width:100%;height:100%;object-fit:contain;}
+  @keyframes cardin{from{transform:scale(.94);opacity:.4}}
+  .w-text{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;}
+  .win h2{position:relative;z-index:2;font-size:clamp(30px,5.6vw,54px);margin:0;font-weight:800;line-height:1.1;}
+  .win p{position:relative;z-index:2;margin:.3em 0 0;font-weight:700;font-size:clamp(17px,2.9vw,27px);}
+  .win-btns{position:relative;z-index:2;display:flex;gap:clamp(12px,2.4vw,28px);flex-wrap:wrap;justify-content:center;margin-top:clamp(16px,3.6vh,48px);}
+  .wbtn{display:inline-flex;align-items:center;justify-content:center;gap:.5em;border:none;cursor:pointer;font-family:var(--font);font-weight:800;
+    font-size:clamp(17px,3vw,32px);padding:clamp(13px,2.4vw,28px) clamp(26px,5.2vw,62px);border-radius:999px;}
+  .wicon{width:1.15em;height:1.15em;flex:none;}
   .wbtn.again{color:var(--ink);background:var(--yellow);box-shadow:0 5px 0 var(--yellow-d);}
   .wbtn.home{color:#fff;background:var(--green-btn);box-shadow:0 5px 0 var(--green-btn-d);}
   .wbtn:active{transform:translateY(3px);}
   .wbtn.again:active{box-shadow:0 2px 0 var(--yellow-d);}
   .wbtn.home:active{box-shadow:0 2px 0 var(--green-btn-d);}
 
-  .confetti{position:absolute;top:-10px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards;z-index:90;}
+  .confetti{position:absolute;top:-10px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards;z-index:1;}
   @keyframes fall{to{transform:translateY(120vh) rotate(540deg);opacity:.9;}}
-  .toast{position:absolute;bottom:92px;left:50%;transform:translateX(-50%) translateY(10px);background:#fff;color:var(--green-deep);font-weight:700;font-size:14px;padding:9px 18px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:75;max-width:80%;text-align:center;}
+  .toast{position:absolute;bottom:120px;left:50%;transform:translateX(-50%) translateY(10px);background:#fff;color:var(--green-deep);font-weight:700;font-size:14px;padding:9px 18px;border-radius:14px;box-shadow:0 6px 16px rgba(0,0,0,.22);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:96;max-width:80%;text-align:center;}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  /* short screens (phones on their side): tighten everything around the puzzle */
+  @media (max-height:520px){
+    :root{--b:clamp(38px,11vh,54px);}
+    .header{padding-top:calc(4px + env(safe-area-inset-top));padding-bottom:2px;}
+    .pz-name{font-size:clamp(24px,7vh,40px);padding-top:0;}
+    .controls{padding-top:4px;padding-bottom:calc(8px + env(safe-area-inset-bottom));}
+    .hear{font-size:clamp(15px,4vh,20px);}
+    .win h2{font-size:clamp(22px,6.5vh,34px);} .win p{font-size:clamp(14px,3.8vh,18px);}
+    .win-btns{margin-top:14px;} .wbtn{font-size:16px;padding:10px 22px;}
+    .w-slot{padding:6px 0;}
+  }
+  /* wide and short: art on the left, message and buttons on the right */
+  @media (max-height:520px) and (orientation:landscape){
+    .win.open{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto minmax(0,1fr);column-gap:24px;align-items:center;}
+    .win .pz-name{grid-column:1 / -1;}
+    .w-slot{grid-column:1;grid-row:2;height:100%;}
+    .w-text{grid-column:2;grid-row:2;}
+  }
 </style>
 </head>
 <body>
 
-<div class="screen">
-  <div class="header">
+<div class="screen" id="screen">
+  <div class="header" id="header">
     <button class="icon-btn" id="btn-home" title="Home" aria-label="Home">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>
     </button>
-    <div class="ttl">Jigsaw</div>
-    <button class="icon-btn" id="btn-newgame" title="Language" aria-label="Language menu">
+    <div class="ttl">Jigsaw Puzzle</div>
+    <button class="icon-btn" id="btn-menu" title="Menu" aria-label="Menu">
       <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="12" cy="19" r="1.9"/></svg>
     </button>
   </div>
-
-  <div class="prog-row"><div class="track"><div class="fill" id="fill"></div></div></div>
 
   <div class="pz-name" id="pz-name"></div>
 
@@ -106,18 +143,27 @@
   </div>
 
   <div class="controls">
-    <button class="rnd" id="btn-shuffle" title="Shuffle pieces" aria-label="Shuffle pieces">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    <button class="rnd off" id="btn-undo" title="Undo" aria-label="Undo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+    </button>
+    <button class="rnd off" id="btn-redo" title="Redo" aria-label="Redo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
     </button>
     <button class="hear" id="btn-hear">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8.5a4 4 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <span>Hear it</span>
     </button>
-    <button class="rnd" id="btn-next" title="New animal" aria-label="New animal">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
+    <button class="rnd" id="btn-lang" title="Language" aria-label="Language">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a13.5 13.5 0 0 1 0 18a13.5 13.5 0 0 1 0-18z"/></svg>
+    </button>
+    <button class="rnd" id="btn-new" title="New game" aria-label="New game">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
     </button>
   </div>
 
+  <div class="menu" id="menu-top">
+    <button class="menu-item" data-act="new"><span>New Game</span></button>
+  </div>
   <div class="menu" id="menu-lang">
     <div class="menu-title">Language</div>
     <button class="menu-item" data-lang="en"><span>English</span><svg class="tick" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4 10-11"/></svg></button>
@@ -127,12 +173,15 @@
   </div>
 
   <div class="win" id="win">
-    <div class="emoji">&#127881;</div>
+    <div class="pz-name" id="win-name"></div>
+    <div class="w-slot" id="w-slot"><div class="w-card" id="w-card"><img id="w-img" alt=""></div></div>
+    <div class="w-text">
     <h2>You did it!</h2>
     <p id="win-sub"></p>
     <div class="win-btns">
       <button class="wbtn home" id="win-home"><svg class="wicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-6h5v6"/></svg>Home</button>
       <button class="wbtn again" id="win-again"><svg class="wicon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"><path d="M9.6 7.2v9.6l8.2-4.8z"/></svg>Play again</button>
+    </div>
     </div>
   </div>
 
@@ -143,20 +192,25 @@
 const GAME={"animals": [{"key": "ant", "names": {"en": "ant", "es": "hormiga", "hmnw": "ntsaum", "hmng": "ntsaum"}}, {"key": "bear", "names": {"en": "bear", "es": "oso", "hmnw": "dais", "hmng": "dlais"}}, {"key": "bird", "names": {"en": "bird", "es": "p\u00e1jaro", "hmnw": "noog", "hmng": "noog"}}, {"key": "butterfly", "names": {"en": "butterfly", "es": "mariposa", "hmnw": "npauj npaim", "hmng": "npauj npaim"}}, {"key": "cat", "names": {"en": "cat", "es": "gato", "hmnw": "miv", "hmng": "miv"}}, {"key": "chicken", "names": {"en": "chicken", "es": "gallina", "hmnw": "qaib", "hmng": "qab"}}, {"key": "cow", "names": {"en": "cow", "es": "vaca", "hmnw": "nyuj", "hmng": "nyuj"}}, {"key": "crab", "names": {"en": "crab", "es": "cangrejo", "hmnw": "roob ris", "hmng": "roob rig"}}, {"key": "crocodile", "names": {"en": "crocodile", "es": "cocodrilo", "hmnw": "kheb", "hmng": "kheb"}}, {"key": "deer", "names": {"en": "deer", "es": "venado", "hmnw": "mos lwj", "hmng": "mos lwj"}}, {"key": "dog", "names": {"en": "dog", "es": "perro", "hmnw": "dev", "hmng": "dlev"}}, {"key": "elephant", "names": {"en": "elephant", "es": "elefante", "hmnw": "ntxhw", "hmng": "ntxhw"}}, {"key": "fish", "names": {"en": "fish", "es": "pez", "hmnw": "ntses", "hmng": "ntseg"}}, {"key": "fly", "names": {"en": "fly", "es": "mosca", "hmnw": "yoov", "hmng": "yoov"}}, {"key": "fox", "names": {"en": "fox", "es": "zorro", "hmnw": "hma", "hmng": "hmaa"}}, {"key": "frog", "names": {"en": "frog", "es": "rana", "hmnw": "qav", "hmng": "qaav"}}, {"key": "goat", "names": {"en": "goat", "es": "cabra", "hmnw": "tshis", "hmng": "tshis"}}, {"key": "grasshopper", "names": {"en": "grasshopper", "es": "saltamontes", "hmnw": "kooj", "hmng": "kooj"}}, {"key": "horse", "names": {"en": "horse", "es": "caballo", "hmnw": "nees", "hmng": "neeg"}}, {"key": "mouse", "names": {"en": "mouse", "es": "rat\u00f3n", "hmnw": "nas", "hmng": "naas"}}, {"key": "peacock", "names": {"en": "peacock", "es": "pavo real", "hmnw": "yaj yuam", "hmng": "yaaj yuam"}}, {"key": "pig", "names": {"en": "pig", "es": "cerdo", "hmnw": "npua", "hmng": "npua"}}, {"key": "rabbit", "names": {"en": "rabbit", "es": "conejo", "hmnw": "luav", "hmng": "luav"}}, {"key": "snail", "names": {"en": "snail", "es": "caracol", "hmnw": "qwj", "hmng": "qwj"}}, {"key": "tiger", "names": {"en": "tiger", "es": "tigre", "hmnw": "tsov txaij", "hmng": "tsuv txaij"}}, {"key": "turtle", "names": {"en": "turtle", "es": "tortuga", "hmnw": "vaub kib", "hmng": "vaub kib"}}]};
 const ANIMALS=GAME.animals;
 const N=3;                    /* 3 x 3 = 9 pieces */
+const ART_INSET=0.075;        /* white margin between the art and the puzzle edge, as a share of the board's short side */
 
 let lang='en', animal=null, pieces=[], placed=0, solved=false;
-let board={x:0,y:0,w:0,h:0}, cw=0, ch=0, tabU=0, pad=0;
+let board={x:0,y:0,w:0,h:0}, cw=0, ch=0, tabU=0, pad=0, natAR=1;
 let vt=[], ht=[];             /* shared tab directions */
+let undoStack=[], redoStack=[];
 
+const screenEl=document.getElementById('screen');
+const headerEl=document.getElementById('header');
 const playEl=document.getElementById('play');
 const guideEl=document.getElementById('guide');
 const nameEl=document.getElementById('pz-name');
-const fillEl=document.getElementById('fill');
 const winEl=document.getElementById('win');
 const toastEl=document.getElementById('toast');
+const btnUndo=document.getElementById('btn-undo'), btnRedo=document.getElementById('btn-redo');
 
 function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>toastEl.classList.remove('show'),1600);}
 function word(){ return animal ? (animal.names[lang]||animal.key) : ''; }
+function imgSrc(){ return 'assets/img/'+animal.key+'.png'; }
 
 /* ---------- audio ---------- */
 let au=null, audioWarned=false;
@@ -165,25 +219,29 @@ function playName(){ if(animal) playClip('assets/audio/'+lang+'/'+animal.key+'.m
 
 /* ---------- jigsaw edge geometry ----------
    One edge runs from (0,0) to (1,0) in normalized space. x is distance along
-   the edge, y is perpendicular offset. s = +1 / -1 picks the side the tab
-   bulges toward; s = 0 is a flat outer border. The curve is symmetric about
-   x = 0.5, so two neighbours tracing it from opposite ends get the same shape. */
-const TAB_MAX=0.30;           /* furthest a control point strays from the edge */
+   the edge, y is how far the tab stands off it. s = +1 / -1 picks the side the
+   tab bulges toward; s = 0 is a flat outer border. The curve is symmetric about
+   x = 0.5, so two neighbours tracing it from opposite ends get the same shape.
+   Traced from the reference: a wide neck with rounded fillets where it meets the
+   edge, then a round head. */
+const TAB_MAX=0.30;           /* headroom around each piece for the tabs */
 function edgeSegs(s){
   if(s===0) return [['L',[[1,0]]]];
   const y=v=>v*s;
   return [
-    ['L',[[0.38,0]]],
-    ['C',[[0.45,y(0.03)],[0.30,y(0.06)],[0.30,y(0.15)]]],
-    ['C',[[0.30,y(0.30)],[0.70,y(0.30)],[0.70,y(0.15)]]],
-    ['C',[[0.70,y(0.06)],[0.55,y(0.03)],[0.62,0]]],
+    ['L',[[0.320,0]]],
+    ['C',[[0.345,0],[0.355,y(0.012)],[0.355,y(0.030)]]],
+    ['C',[[0.355,y(0.075)],[0.295,y(0.100)],[0.295,y(0.155)]]],
+    ['C',[[0.295,y(0.230)],[0.367,y(0.270)],[0.500,y(0.270)]]],
+    ['C',[[0.633,y(0.270)],[0.705,y(0.230)],[0.705,y(0.155)]]],
+    ['C',[[0.705,y(0.100)],[0.645,y(0.075)],[0.645,y(0.030)]]],
+    ['C',[[0.645,y(0.012)],[0.655,0],[0.680,0]]],
     ['L',[[1,0]]]
   ];
 }
 /* rot = direction of travel: 0 right, 1 down, 2 left, 3 up.
-   L is the edge length, T the tab unit. The tab is squeezed toward the middle
-   of longer edges so every tab comes out the same physical size, rather than
-   stretching with the edge it sits on. */
+   L is the edge length, T the tab unit. On longer edges the tab is squeezed
+   toward the middle so every tab comes out the same physical size. */
 function mapSegs(segs,ox,oy,L,T,rot){
   const k=Math.min(1,T/L);
   const sq=x=>(x>=0.999?1:(x<=0.001?0:0.5+(x-0.5)*k));
@@ -211,71 +269,85 @@ function piecePath(r,c){
 }
 
 /* ---------- layout ---------- */
+function overlap(ax,ay,aw,ah,bx,by,bw,bh){
+  const w=Math.min(ax+aw,bx+bw)-Math.max(ax,bx), h=Math.min(ay+ah,by+bh)-Math.max(ay,by);
+  return (w>0&&h>0)?w*h:0;
+}
+/* Try to place all nine loose pieces around a board of this size so that no
+   piece body touches the board or another piece (with a little elbow room for
+   tabs). Returns the spots, or null if they don't all fit. */
+function packFor(bw,bh,bias,pw,phh,strict){
+  const c1=bw/N, c2=bh/N, tu=Math.min(c1,c2), pd=TAB_MAX*tu, w=c1+2*pd, h=c2+2*pd, m=tu*0.15;
+  const bx0=(pw-bw)/2, by0=(phh-bh)*bias, maxX=pw-w, maxY=phh-h;
+  if(maxX<0||maxY<0) return null;
+  const spots=[];
+  for(let k=0;k<N*N;k++){
+    let best=null, bestPen=Infinity;
+    for(let t=0;t<260;t++){
+      const x=Math.random()*maxX, y=Math.random()*maxY, bx=x+pd, by=y+pd;
+      let pen=overlap(bx,by,c1,c2,bx0-6,by0-6,bw+12,bh+12)*6;
+      for(const q of spots) pen+=overlap(bx-m,by-m,c1+2*m,c2+2*m,q.x+pd-m,q.y+pd-m,c1+2*m,c2+2*m);
+      if(pen<bestPen){ bestPen=pen; best={x:x,y:y}; if(pen<0.5) break; }
+    }
+    if(strict && bestPen>=0.5) return null;
+    spots.push(best);
+  }
+  return {bx0:bx0, by0:by0, spots:spots};
+}
+let spots=[];
 function measure(natW,natH){
   const pw=playEl.clientWidth, phh=playEl.clientHeight;
   if(pw<40||phh<40) return false;
   /* Follow the artwork's aspect so every piece carries some of the animal, but
-     clamp it so cells never get very long and thin. Anything outside the clamp
-     is letterboxed against the piece's white backing, never stretched. */
+     clamp it so cells never get long and thin. */
   let ar=natW/natH;
   if(!isFinite(ar)||ar<=0) ar=1;
+  natAR=ar;
   ar=Math.max(0.78,Math.min(1.28,ar));
-  const room=Math.min(pw,phh);
-  const target=room*(room<340?0.60:0.62);
-  let bw,bh;
-  if(ar>=1){ bw=target*ar; bh=bw/ar; } else { bh=target/ar; bw=bh*ar; }
-  if(bw>pw*0.66){ bw=pw*0.66; bh=bw/ar; }
-  if(bh>phh*0.66){ bh=phh*0.66; bw=bh*ar; }
-  board={x:(pw-bw)/2, y:(phh-bh)/2, w:bw, h:bh};
+  /* Largest board, up to the mockup's proportions, that still leaves room for
+     every loose piece. Search from big to small. */
+  /* portrait follows the mockup's proportions; on wide screens the loose pieces
+     go to the sides, so the board may use far more of the height */
+  const land=pw>phh*1.25, wCap=land?0.52:0.64, hCap=land?0.86:0.54;
+  const size=f=>{ let bw=Math.min(pw*wCap,Math.min(pw,phh)*f*(ar>=1?1:ar)*(land?1.6:1)), bh=bw/ar;
+    if(bh>phh*hCap){ bh=phh*hCap; bw=bh*ar; } return [bw,bh]; };
+  let pick=null;
+  for(let f=0.78; f>=0.34 && !pick; f-=0.03){
+    const [bw,bh]=size(f);
+    for(const bias of [0.38,0.5]){
+      for(let t=0;t<3&&!pick;t++){ const r=packFor(bw,bh,bias,pw,phh,true); if(r) pick={bw:bw,bh:bh,r:r}; }
+      if(pick) break;
+    }
+  }
+  if(!pick){ const [bw,bh]=size(0.34); pick={bw:bw,bh:bh,r:packFor(bw,bh,0.5,pw,phh,false)}; }
+  const bw=pick.bw, bh=pick.bh;
+  board={x:pick.r.bx0, y:pick.r.by0, w:bw, h:bh};
   cw=bw/N; ch=bh/N; tabU=Math.min(cw,ch); pad=TAB_MAX*tabU;
+  spots=pick.r.spots.slice().sort(()=>Math.random()-0.5);
   guideEl.style.left=board.x+'px'; guideEl.style.top=board.y+'px';
   guideEl.style.width=bw+'px'; guideEl.style.height=bh+'px';
   return true;
 }
+function artBox(){
+  const inset=ART_INSET*Math.min(board.w,board.h);
+  return {x:inset, y:inset, w:board.w-2*inset, h:board.h-2*inset, inset:inset};
+}
 
-/* scatter an unsolved piece somewhere in the margin around the board */
-function scatterSpot(pw,ph,w,h){
-  const bands=[];
-  if(board.y>h*0.55)                bands.push([0,0,pw,board.y]);                       /* above */
-  if(ph-(board.y+board.h)>h*0.55)   bands.push([0,board.y+board.h,pw,ph-(board.y+board.h)]); /* below */
-  if(board.x>w*0.55)                bands.push([0,0,board.x,ph]);                       /* left  */
-  if(pw-(board.x+board.w)>w*0.55)   bands.push([board.x+board.w,0,pw-(board.x+board.w),ph]); /* right */
-  if(!bands.length) bands.push([0,0,pw,ph]);
-  const b=bands[Math.floor(Math.random()*bands.length)];
-  const x=b[0]+Math.random()*Math.max(1,b[2]-w);
-  const y=b[1]+Math.random()*Math.max(1,b[3]-h);
-  return {x:Math.max(0,Math.min(pw-w,x)), y:Math.max(0,Math.min(ph-h,y))};
-}
-function scatter(p){
-  const pw=playEl.clientWidth, ph=playEl.clientHeight;
-  let best=null,bestScore=-1;
-  for(let t=0;t<40;t++){
-    const s=scatterSpot(pw,ph,p.w,p.h);
-    /* prefer spots away from other loose pieces and away from its own home */
-    let score=Math.hypot(s.x-p.homeX,s.y-p.homeY);
-    if(score<p.w*0.8) continue;
-    pieces.forEach(q=>{ if(q!==p&&!q.locked&&q.el) score=Math.min(score,Math.hypot(s.x-q.x,s.y-q.y)*1.4); });
-    if(score>bestScore){bestScore=score;best=s;}
-    if(bestScore>p.w*0.9) break;
-  }
-  if(!best) best=scatterSpot(pw,ph,p.w,p.h);
-  setPos(p,best.x,best.y);
-}
 function setPos(p,x,y){ p.x=x; p.y=y; p.el.style.left=x+'px'; p.el.style.top=y+'px'; }
 
 /* ---------- build ---------- */
 let zTop=10;
 function build(keepLocked){
   const img=new Image();
-  img.onload=()=>{ if(measure(img.naturalWidth,img.naturalHeight)) paint(img, keepLocked); };
-  img.onerror=()=>{ if(measure(1,1)) paint(img, keepLocked); };
-  img.src='assets/img/'+animal.key+'.png';
+  img.onload=()=>{ if(measure(img.naturalWidth,img.naturalHeight)) paint(keepLocked); };
+  img.onerror=()=>{ if(measure(1,1)) paint(keepLocked); };
+  img.src=imgSrc();
 }
-function paint(img, keepLocked){
+function paint(keepLocked){
   const lockedKeys = keepLocked ? pieces.filter(p=>p.locked).map(p=>p.i) : [];
   playEl.querySelectorAll('.piece').forEach(e=>e.remove());
-  pieces=[]; placed=0;
-  const src='assets/img/'+animal.key+'.png';
+  pieces=[]; placed=0; undoStack=[]; redoStack=[];
+  const a=artBox(), src=imgSrc();
   for(let r=0;r<N;r++) for(let c=0;c<N;c++){
     const i=r*N+c;
     const d=piecePath(r,c);
@@ -286,17 +358,17 @@ function paint(img, keepLocked){
     el.style.width=vbW+'px'; el.style.height=vbH+'px';
     el.innerHTML=
       '<defs><clipPath id="cp'+i+'"><path d="'+d+'"/></clipPath></defs>'+
-      '<path d="'+d+'" fill="#ffffff"/>'+
-      '<image href="'+src+'" x="0" y="0" width="'+board.w+'" height="'+board.h+'" '+
+      '<path class="hit" d="'+d+'" fill="#ffffff"/>'+
+      '<image href="'+src+'" x="'+a.x+'" y="'+a.y+'" width="'+a.w+'" height="'+a.h+'" '+
         'preserveAspectRatio="xMidYMid meet" clip-path="url(#cp'+i+')"/>'+
-      '<path d="'+d+'" fill="none" stroke="rgba(13,117,54,.28)" stroke-width="1.4" stroke-linejoin="round"/>';
+      '<path class="edge" d="'+d+'" fill="none" stroke="rgba(13,117,54,.28)" stroke-width="1.4" stroke-linejoin="round"/>';
     playEl.appendChild(el);
     const p={i:i,el:el,w:vbW,h:vbH,homeX:board.x+vbX,homeY:board.y+vbY,x:0,y:0,locked:false};
     pieces.push(p);
-    if(lockedKeys.indexOf(i)>=0){ lock(p,true); } else { scatter(p); }
+    if(lockedKeys.indexOf(i)>=0){ lock(p,true); } else { const sp=spots.pop()||{x:0,y:0}; setPos(p,sp.x,sp.y); }
     attachDrag(p);
   }
-  updateProgress();
+  updateGuide(); syncHist();
 }
 
 function lock(p,silent){
@@ -305,11 +377,38 @@ function lock(p,silent){
   setPos(p,p.homeX,p.homeY);
   placed++;
   if(!silent){ p.el.classList.add('pop'); setTimeout(()=>p.el.classList.remove('pop'),320); }
-  updateProgress();
+  updateGuide();
 }
-function updateProgress(){
-  fillEl.style.width=Math.round(placed/(N*N)*100)+'%';
-  guideEl.classList.toggle('done',placed===N*N);
+function unlock(p){
+  p.locked=false; p.el.classList.remove('locked');
+  p.el.style.zIndex=++zTop;
+  placed--; updateGuide();
+}
+function updateGuide(){ guideEl.classList.toggle('done',placed===N*N); }
+
+/* ---------- undo / redo ---------- */
+function syncHist(){
+  btnUndo.classList.toggle('off',!undoStack.length||solved);
+  btnRedo.classList.toggle('off',!redoStack.length||solved);
+}
+function glide(p,x,y){
+  p.el.classList.add('moving'); p.el.style.zIndex=p.locked?1:++zTop;
+  setPos(p,x,y);
+  clearTimeout(p._g); p._g=setTimeout(()=>p.el.classList.remove('moving'),320);
+}
+function undo(){
+  const m=undoStack.pop(); if(!m||solved) return;
+  const p=pieces[m.i];
+  if(m.locked) unlock(p);
+  glide(p,m.fx,m.fy);
+  redoStack.push(m); syncHist();
+}
+function redo(){
+  const m=redoStack.pop(); if(!m||solved) return;
+  const p=pieces[m.i];
+  if(m.locked){ lock(p); if(placed===N*N) setTimeout(win,420); }
+  else glide(p,m.tx,m.ty);
+  undoStack.push(m); syncHist();
 }
 
 /* ---------- dragging ---------- */
@@ -317,11 +416,12 @@ function attachDrag(p){
   p.el.addEventListener('pointerdown',ev=>{
     if(p.locked||solved) return;
     ev.preventDefault();
-    p.el.setPointerCapture(ev.pointerId);
-    p.el.classList.add('dragging'); p.el.classList.remove('snapping');
+    try{ ev.target.setPointerCapture(ev.pointerId); p.capEl=ev.target; }catch(e){ p.capEl=null; }
+    p.el.classList.add('dragging'); p.el.classList.remove('snapping','moving');
     p.el.style.zIndex=++zTop;
     const r=playEl.getBoundingClientRect();
     p.dx=(ev.clientX-r.left)-p.x; p.dy=(ev.clientY-r.top)-p.y;
+    p.fx=p.x; p.fy=p.y;
     p.drag=true;
   });
   p.el.addEventListener('pointermove',ev=>{
@@ -335,24 +435,47 @@ function attachDrag(p){
   const end=ev=>{
     if(!p.drag) return;
     p.drag=false; p.el.classList.remove('dragging');
-    try{p.el.releasePointerCapture(ev.pointerId);}catch(e){}
-    const dist=Math.hypot(p.x-p.homeX,p.y-p.homeY);
-    if(dist<Math.max(26,tabU*0.42)){
+    try{ if(p.capEl) p.capEl.releasePointerCapture(ev.pointerId); }catch(e){}
+    let didLock=false;
+    if(Math.hypot(p.x-p.homeX,p.y-p.homeY)<Math.max(26,tabU*0.42)){
       p.el.classList.add('snapping');
-      lock(p);
+      lock(p); didLock=true;
       setTimeout(()=>p.el.classList.remove('snapping'),220);
-      if(placed===N*N) setTimeout(win,420);
     }
+    if(Math.hypot(p.x-p.fx,p.y-p.fy)>3){
+      undoStack.push({i:p.i,fx:p.fx,fy:p.fy,tx:p.x,ty:p.y,locked:didLock});
+      redoStack=[]; syncHist();
+    }
+    if(didLock && placed===N*N) setTimeout(win,420);
   };
   p.el.addEventListener('pointerup',end);
   p.el.addEventListener('pointercancel',end);
 }
 
 /* ---------- win ---------- */
+function winText(){
+  document.getElementById('win-name').textContent=word();
+  document.getElementById('win-sub').textContent='You put together the '+word()+'!';
+}
+function sizeWinCard(){
+  if(!solved) return;
+  const slot=document.getElementById('w-slot'), card=document.getElementById('w-card');
+  const cs=getComputedStyle(slot);
+  const sw=slot.clientWidth, sh=slot.clientHeight-parseFloat(cs.paddingTop)-parseFloat(cs.paddingBottom);
+  /* same size as the finished puzzle when there's room, smaller when there isn't */
+  const s=Math.min(1, sw/board.w, sh/board.h);
+  card.style.width=(board.w*s)+'px'; card.style.height=(board.h*s)+'px';
+  card.style.padding=(artBox().inset*s)+'px';
+}
 function win(){
-  solved=true;
-  document.getElementById('win-sub').textContent='You put together the '+word()+'.';
+  solved=true; syncHist();
+  closeMenus();
+  winEl.style.setProperty('--hdr',headerEl.offsetHeight+'px');
+  document.getElementById('w-img').src=imgSrc();
+  winText();
+  screenEl.classList.add('won');
   winEl.classList.add('open');
+  requestAnimationFrame(sizeWinCard);
   playName();
   confetti();
 }
@@ -361,7 +484,7 @@ function confetti(){
   for(let i=0;i<60;i++){ const c=document.createElement('div'); c.className='confetti';
     c.style.left=Math.random()*100+'%'; c.style.background=cols[i%cols.length];
     c.style.animationDuration=(1.6+Math.random()*1.3)+'s'; c.style.animationDelay=(Math.random()*.3)+'s';
-    document.querySelector('.screen').appendChild(c); setTimeout(()=>c.remove(),3200); }
+    winEl.appendChild(c); setTimeout(()=>c.remove(),3200); }
 }
 
 /* ---------- rounds ---------- */
@@ -370,51 +493,60 @@ function randomTabs(){
   for(let r=0;r<N;r++){ vt.push([]); for(let c=0;c<=N;c++) vt[r].push(Math.random()<0.5?-1:1); }
   for(let r=0;r<=N;r++){ ht.push([]); for(let c=0;c<=N;c++) ht[r].push(Math.random()<0.5?-1:1); }
 }
-function newRound(keepAnimal){
-  solved=false; winEl.classList.remove('open');
+function newRound(){
+  solved=false;
+  winEl.classList.remove('open'); screenEl.classList.remove('won');
   winEl.querySelectorAll('.confetti').forEach(c=>c.remove());
-  if(!keepAnimal){
-    let next=animal;
-    while(ANIMALS.length>1 && next===animal) next=ANIMALS[Math.floor(Math.random()*ANIMALS.length)];
-    animal=next;
-  }
+  let next=animal;
+  while(ANIMALS.length>1 && next===animal) next=ANIMALS[Math.floor(Math.random()*ANIMALS.length)];
+  animal=next;
   randomTabs();
   nameEl.textContent=word();
   build(false);
 }
-function shuffleOnly(){
-  solved=false;
-  pieces.forEach(p=>{ p.locked=false; p.el.classList.remove('locked'); p.el.style.zIndex=++zTop; });
-  placed=0; randomTabs(); build(false);
+
+/* ---------- menus ---------- */
+const menuTop=document.getElementById('menu-top'), menuLang=document.getElementById('menu-lang');
+function closeMenus(except){ [menuTop,menuLang].forEach(m=>{ if(m!==except) m.classList.remove('open'); }); }
+function openLangMenu(){
+  /* float the language list just above the globe button */
+  const r=document.getElementById('btn-lang').getBoundingClientRect(), sr=screenEl.getBoundingClientRect();
+  menuLang.style.top='auto';
+  menuLang.style.bottom=(sr.bottom-r.top+12)+'px';
+  menuLang.style.right=Math.max(12,sr.right-r.right-40)+'px';
+  menuLang.classList.add('open');
 }
-
-/* ---------- language ---------- */
-const menuLang=document.getElementById('menu-lang');
 function applyLangMark(){ document.querySelectorAll('#menu-lang .menu-item').forEach(it=>it.classList.toggle('cur',it.dataset.lang===lang)); }
-function setLang(code){ lang=code; applyLangMark(); nameEl.textContent=word();
-  if(solved) document.getElementById('win-sub').textContent='You put together the '+word()+'.'; playName(); }
+function setLang(code){ lang=code; applyLangMark(); nameEl.textContent=word(); if(solved) winText(); playName(); }
 
-document.getElementById('btn-newgame').addEventListener('click',e=>{e.stopPropagation();menuLang.classList.toggle('open');});
-menuLang.addEventListener('click',e=>{const it=e.target.closest('.menu-item');if(!it)return;menuLang.classList.remove('open');setLang(it.dataset.lang);});
-document.addEventListener('click',()=>menuLang.classList.remove('open'));
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') menuLang.classList.remove('open'); });
+document.getElementById('btn-menu').addEventListener('click',e=>{ e.stopPropagation(); const o=menuTop.classList.contains('open'); closeMenus(); if(!o) menuTop.classList.add('open'); });
+document.getElementById('btn-lang').addEventListener('click',e=>{ e.stopPropagation(); const o=menuLang.classList.contains('open'); closeMenus(); if(!o) openLangMenu(); });
+menuTop.addEventListener('click',e=>{ const it=e.target.closest('.menu-item'); if(!it) return; closeMenus(); if(it.dataset.act==='new') newRound(); });
+menuLang.addEventListener('click',e=>{ const it=e.target.closest('.menu-item'); if(!it) return; closeMenus(); setLang(it.dataset.lang); });
+document.addEventListener('click',()=>closeMenus());
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMenus(); });
 
 document.getElementById('btn-home').addEventListener('click',()=>{location.href='index.html';});
 document.getElementById('btn-hear').addEventListener('click',playName);
-document.getElementById('btn-shuffle').addEventListener('click',shuffleOnly);
-document.getElementById('btn-next').addEventListener('click',()=>newRound(false));
+btnUndo.addEventListener('click',undo);
+btnRedo.addEventListener('click',redo);
+document.getElementById('btn-new').addEventListener('click',newRound);
 document.getElementById('win-home').addEventListener('click',()=>{location.href='index.html';});
-document.getElementById('win-again').addEventListener('click',()=>newRound(false));
+document.getElementById('win-again').addEventListener('click',newRound);
 
 /* keep the board sensible through rotation / resize */
 let rt=null;
-addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(animal) build(true); },180); });
+addEventListener('resize',()=>{ clearTimeout(rt); rt=setTimeout(()=>{
+  if(!animal) return;
+  if(solved){ winEl.style.setProperty('--hdr',headerEl.offsetHeight+'px'); sizeWinCard(); }
+  else build(true);
+},180); });
 
 applyLangMark();
-newRound(false);
+newRound();
 /* the play area's height can still be settling on first paint (dvh, safe areas) */
-requestAnimationFrame(()=>{ if(animal) build(true); });
-addEventListener('load',()=>setTimeout(()=>{ if(animal) build(true); },80));
+requestAnimationFrame(()=>{ if(animal&&!solved) build(true); });
+addEventListener('load',()=>setTimeout(()=>{ if(animal&&!solved) build(true); },80));
 </script>
 </body>
 </html>
