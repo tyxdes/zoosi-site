@@ -36,18 +36,25 @@
     background:rgba(255,255,255,.05);pointer-events:none;transition:opacity .4s;}
   .guide.done{opacity:0;}
 
-  .piece{position:absolute;overflow:visible;touch-action:none;user-select:none;pointer-events:none;
-    filter:drop-shadow(0 4px 6px rgba(0,0,0,.30));will-change:left,top;}
+  /* Pieces move with transform, never left/top. Changing left/top repaints the
+     element, and mobile browsers size that repaint from the element's box —
+     which excludes the drop-shadow — so the old shadow was left behind as a
+     trail. A transform is composited instead, so nothing repaints. */
+  .piece{position:absolute;left:0;top:0;overflow:visible;touch-action:none;user-select:none;pointer-events:none;
+    filter:drop-shadow(0 4px 6px rgba(0,0,0,.30));
+    transform:translate3d(0,0,0);will-change:transform;backface-visibility:hidden;}
   /* only the visible jigsaw shape is grabbable, never the empty space around its tabs */
   .piece .hit{pointer-events:visiblePainted;cursor:grab;}
   .piece image,.piece .edge{pointer-events:none;}
   .piece.locked .hit{pointer-events:none;}
   .piece.dragging .hit{cursor:grabbing;}
   .piece.dragging{filter:drop-shadow(0 12px 16px rgba(0,0,0,.38));}
-  .piece.locked{filter:drop-shadow(0 1px 2px rgba(0,0,0,.18));}
-  .piece.snapping{transition:left .18s cubic-bezier(.3,1.4,.5,1),top .18s cubic-bezier(.3,1.4,.5,1);}
-  .piece.moving{transition:left .3s ease,top .3s ease;}
-  .piece.pop{animation:pop .3s ease;}
+  /* a locked piece never moves again, so it doesn't need its own layer */
+  .piece.locked{filter:drop-shadow(0 1px 2px rgba(0,0,0,.18));will-change:auto;}
+  .piece.snapping{transition:transform .18s cubic-bezier(.3,1.4,.5,1);}
+  .piece.moving{transition:transform .3s ease;}
+  .piece .inner{transform-box:fill-box;transform-origin:center;}
+  .piece.pop .inner{animation:pop .3s ease;}
   @keyframes pop{40%{transform:scale(1.07)}}
 
   /* bottom bar: undo · redo · hear it · language · new game */
@@ -336,7 +343,7 @@ function artBox(){
   return {x:inset, y:inset, w:board.w-2*inset, h:board.h-2*inset, inset:inset};
 }
 
-function setPos(p,x,y){ p.x=x; p.y=y; p.el.style.left=x+'px'; p.el.style.top=y+'px'; }
+function setPos(p,x,y){ p.x=x; p.y=y; p.el.style.transform='translate3d('+x+'px,'+y+'px,0)'; }
 
 /* ---------- build ---------- */
 let zTop=10;
@@ -361,10 +368,12 @@ function paint(keepLocked){
     el.style.width=vbW+'px'; el.style.height=vbH+'px';
     el.innerHTML=
       '<defs><clipPath id="cp'+i+'"><path d="'+d+'"/></clipPath></defs>'+
+      '<g class="inner">'+
       '<path class="hit" d="'+d+'" fill="#ffffff"/>'+
       '<image href="'+src+'" x="'+a.x+'" y="'+a.y+'" width="'+a.w+'" height="'+a.h+'" '+
         'preserveAspectRatio="xMidYMid meet" clip-path="url(#cp'+i+')"/>'+
-      '<path class="edge" d="'+d+'" fill="none" stroke="rgba(13,117,54,.28)" stroke-width="1.4" stroke-linejoin="round"/>';
+      '<path class="edge" d="'+d+'" fill="none" stroke="rgba(13,117,54,.28)" stroke-width="1.4" stroke-linejoin="round"/>'+
+      '</g>';
     playEl.appendChild(el);
     const p={i:i,el:el,w:vbW,h:vbH,homeX:board.x+vbX,homeY:board.y+vbY,x:0,y:0,locked:false};
     pieces.push(p);
